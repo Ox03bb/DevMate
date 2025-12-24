@@ -39,8 +39,8 @@ class _ContainersListState extends State<ContainersList> {
           children: [
             Text("State: "),
             Text(
-              widget.container.status,
-              style: TextStyle(color: _getStateColor(widget.container.status)),
+              widget.container.state,
+              style: TextStyle(color: _getStateColor(widget.container.state)),
             ),
           ],
         ),

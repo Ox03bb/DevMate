@@ -34,7 +34,7 @@ class ContainerModel {
   final String name;
   final Map<String, String>? labels;
   final String image;
-  final String status;
+  final String state;
   final DateTime createdAt;
   final List<Ports>? ports;
 
@@ -43,7 +43,7 @@ class ContainerModel {
     required this.name,
     this.labels,
     required this.image,
-    required this.status,
+    required this.state,
     required this.createdAt,
     this.ports,
   });
@@ -53,7 +53,12 @@ class ContainerModel {
       id: json['id'] as String? ?? '',
       name: json['Names'][0].substring(1) as String? ?? '',
       image: json['Image'] as String? ?? '',
-      status: json['State'] as String? ?? '',
+      labels:
+          (json['Labels'] as Map<String, dynamic>?)?.map(
+            (key, value) => MapEntry(key, value as String),
+          ) ??
+          {},
+      state: json['State'] as String? ?? '',
       createdAt:
           DateTime.tryParse(json['createdAt'] as String? ?? '') ??
           DateTime.fromMillisecondsSinceEpoch(0),
@@ -68,7 +73,7 @@ class ContainerModel {
       'id': id,
       'name': name,
       'image': image,
-      'status': status,
+      'state': state,
       'createdAt': createdAt.toIso8601String(),
       'ports': ports?.map((port) => port.toJson()).toList(),
     };
