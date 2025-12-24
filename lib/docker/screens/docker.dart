@@ -1,3 +1,4 @@
+import 'package:devmate/docker/screens/containers.dart';
 import 'package:devmate/shared/widgets/core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -14,7 +15,7 @@ class _DockerScreenState extends State<DockerScreen> {
 
   // Define the pages for each tab
   final List<Widget> _pages = const [
-    Center(child: Text('Containers')),
+    ContainersBody(),
     Center(child: Text('Images')),
     Center(child: Text('Volumes')),
   ];
