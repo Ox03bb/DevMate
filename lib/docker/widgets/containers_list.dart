@@ -51,12 +51,57 @@ class _ContainersListState extends State<ContainersList> {
         onSelected: (value) {
           // Handle selected action
         },
-        itemBuilder: (context) => [
-          PopupMenuItem(value: 'Start', child: Text('Start')),
-          PopupMenuItem(value: 'Stop', child: Text('Stop')),
-          PopupMenuItem(value: 'Restart', child: Text('Restart')),
-          PopupMenuItem(value: 'Remove', child: Text('Remove')),
-        ],
+        itemBuilder: (context) {
+          final state = widget.container.state.toLowerCase();
+          final isRunning = state == 'running';
+          final isStopped =
+              state.contains('exited') ||
+              state == 'dead' ||
+              state == 'created' ||
+              state == 'removing' ||
+              state == 'paused';
+          List<PopupMenuEntry<String>> items = [];
+          if (isRunning) {
+            items.add(
+              PopupMenuItem(
+                value: 'Stop',
+                child: Row(
+                  children: [
+                    Icon(Icons.stop, color: Colors.red),
+                    SizedBox(width: 8),
+                    Text('Stop'),
+                  ],
+                ),
+              ),
+            );
+          } else if (isStopped) {
+            items.add(
+              PopupMenuItem(
+                value: 'Start',
+                child: Row(
+                  children: [
+                    Icon(Icons.play_arrow, color: Colors.green),
+                    SizedBox(width: 8),
+                    Text('Start'),
+                  ],
+                ),
+              ),
+            );
+          }
+          items.add(
+            PopupMenuItem(
+              value: 'Restart',
+              child: Row(
+                children: [
+                  Icon(Icons.refresh, color: Colors.blue),
+                  SizedBox(width: 8),
+                  Text('Restart'),
+                ],
+              ),
+            ),
+          );
+          return items;
+        },
       ),
       onTap: () {
         // Handle container tap
