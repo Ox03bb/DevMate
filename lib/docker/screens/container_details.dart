@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:devmate/docker/widgets/container_inspect_tab.dart';
 import 'package:devmate/docker/models/container.dart';
+import 'package:devmate/docker/widgets/container_logs_widget.dart';
 
 class ContainerDetails extends StatelessWidget {
   final ContainerModel container;
@@ -29,16 +30,11 @@ class ContainerDetails extends StatelessWidget {
             tabs: [
               Tab(
                 icon: Icon(
-                  Icons.info_outline,
-                  color: Theme.of(context).colorScheme.onPrimary,
-                ),
-              ),
-              Tab(
-                icon: Icon(
                   Icons.receipt_long_sharp,
                   color: Theme.of(context).colorScheme.onPrimary,
                 ),
               ),
+
               Tab(
                 icon: Icon(
                   Icons.terminal,
@@ -51,17 +47,25 @@ class ContainerDetails extends StatelessWidget {
                   color: Theme.of(context).colorScheme.onPrimary,
                 ),
               ),
+              Tab(
+                icon: Icon(
+                  Icons.info_outline,
+                  color: Theme.of(context).colorScheme.onPrimary,
+                ),
+              ),
             ],
           ),
         ),
         body: TabBarView(
           children: [
-            // First tab: Inspect container JSON
-            ContainerInspectTab(container: container),
-            // Placeholder widgets for other tabs
+            // Logs Tab
+            ContainerLogsWidget(containerId: container.id),
+            // Details Tab
             Center(child: Text('Details')),
-            Center(child: Text('Terminal')),
+            // Files Tab
             Center(child: Text('Files')),
+            // Inspect Tab
+            ContainerInspectTab(container: container),
           ],
         ),
       ),
