@@ -1,5 +1,6 @@
 import 'package:devmate/docker/screens/containers.dart';
 import 'package:devmate/docker/screens/images.dart';
+import 'package:devmate/docker/screens/volumes.dart';
 import 'package:devmate/shared/widgets/core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -18,7 +19,7 @@ class _DockerScreenState extends State<DockerScreen> {
   final List<Widget> _pages = const [
     ContainersBody(),
     ImagesBody(),
-    Center(child: Text('Volumes')),
+    VolumesBody(),
   ];
 
   @override
