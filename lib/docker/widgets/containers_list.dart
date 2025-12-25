@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:devmate/docker/models/container.dart';
+import 'package:devmate/docker/screens/container_details.dart';
 
 class ContainersList extends StatefulWidget {
   final ContainerModel container;
@@ -104,7 +105,12 @@ class _ContainersListState extends State<ContainersList> {
         },
       ),
       onTap: () {
-        // Handle container tap
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => ContainerDetails(container: widget.container),
+          ),
+        );
       },
     );
   }

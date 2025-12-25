@@ -66,7 +66,6 @@ class _ContainersBodyState extends State<ContainersBody> {
             ),
           );
         });
-        // Add single containers
         for (var container in singleContainers) {
           widgets.add(ContainersList(container: container));
         }

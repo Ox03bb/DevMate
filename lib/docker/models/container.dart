@@ -50,7 +50,7 @@ class ContainerModel {
 
   factory ContainerModel.fromJson(Map<String, dynamic> json) {
     return ContainerModel(
-      id: json['id'] as String? ?? '',
+      id: json['Id'] as String,
       name: json['Names'][0].substring(1) as String? ?? '',
       image: json['Image'] as String? ?? '',
       labels:
