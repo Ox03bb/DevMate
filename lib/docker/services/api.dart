@@ -7,15 +7,31 @@ import 'package:devmate/docker/models/volumes.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class DockerApiService {
-  final String baseUrl;
+  String? _baseUrl;
   final String imagesCacheKey = "images_cache";
   final String containerCacheKey = "container_cache";
   final String volumesCacheKey = "volumes_cache";
 
+  DockerApiService({String? baseUrl}) : _baseUrl = baseUrl;
+
+  /// Gets the base URL, loading from config if not provided.
+  Future<String> get baseUrl async {
+    if (_baseUrl != null) return _baseUrl!;
+    _baseUrl = await appConfig.getDockerBaseUrl();
+    return _baseUrl!;
+  }
+
+  /// Refreshes the base URL from config (call after device selection changes).
+  Future<void> refreshBaseUrl() async {
+    appConfig.invalidateCache();
+    _baseUrl = await appConfig.getDockerBaseUrl();
+  }
+
   Future<List<VolumeModel>> fetchVolumes() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final url = Uri.parse('$baseUrl/volumes');
+      final base = await baseUrl;
+      final url = Uri.parse('$base/volumes');
       final response = await http.get(url);
       if (response.statusCode == 200) {
         final Map<String, dynamic> data = json.decode(response.body);
@@ -43,13 +59,12 @@ class DockerApiService {
     }
   }
 
-  DockerApiService({this.baseUrl = 'http://$DOCKER_HOST:$DOCKER_PORT'});
-
   Future<List<ImageModel>> fetchImages() async {
     try {
       final prefs = await SharedPreferences.getInstance();
+      final base = await baseUrl;
 
-      final url = Uri.parse('$baseUrl/images/json');
+      final url = Uri.parse('$base/images/json');
       final response = await http.get(url);
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
@@ -82,8 +97,9 @@ class DockerApiService {
   Future<List<ContainerModel>> fetchContainers({bool all = true}) async {
     try {
       final prefs = await SharedPreferences.getInstance();
+      final base = await baseUrl;
 
-      final url = Uri.parse('$baseUrl/containers/json?all=$all');
+      final url = Uri.parse('$base/containers/json?all=$all');
       final response = await http.get(url);
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);

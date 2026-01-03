@@ -38,6 +38,7 @@ dependencies:
   cupertino_icons: ^1.0.8
   flutter_svg: ^2.0.10+1
   http: ^1.6.0
+  multicast_dns: ^0.3.3
 
 dev_dependencies:
   flutter_test:

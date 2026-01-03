@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:devmate/docker/screens/docker.dart';
 import 'package:devmate/shared/widgets/core.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  // Pre-initialize SharedPreferences
+  await SharedPreferences.getInstance();
   runApp(const MyApp());
 }
 
@@ -15,10 +19,19 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
+      themeMode: ThemeMode.light,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
           seedColor: BaseColor,
           primary: BaseColor,
+        ),
+        useMaterial3: true,
+      ),
+      darkTheme: ThemeData(
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: BaseColor,
+          primary: BaseColor,
+          brightness: Brightness.dark,
         ),
         useMaterial3: true,
       ),

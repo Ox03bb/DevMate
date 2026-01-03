@@ -1,19 +1,30 @@
 import 'dart:convert';
-import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:devmate/config.dart';
-import 'package:devmate/docker/models/container.dart';
-import 'package:devmate/docker/models/images.dart';
-import 'package:devmate/docker/models/volumes.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 class LogsApiService {
-  LogsApiService({this.baseUrl = 'http://$DOCKER_HOST:$DOCKER_PORT'});
+  String? _baseUrl;
+
+  LogsApiService({String? baseUrl}) : _baseUrl = baseUrl;
+
+  /// Gets the base URL, loading from config if not provided.
+  Future<String> getBaseUrl() async {
+    if (_baseUrl != null) return _baseUrl!;
+    _baseUrl = await appConfig.getDockerBaseUrl();
+    return _baseUrl!;
+  }
+
+  /// Refreshes the base URL from config.
+  Future<void> refreshBaseUrl() async {
+    appConfig.invalidateCache();
+    _baseUrl = await appConfig.getDockerBaseUrl();
+  }
 
   Stream<String> streamContainerLogs(String id) async* {
     try {
+      final base = await getBaseUrl();
       final url = Uri.parse(
-        '$baseUrl/containers/$id/logs?stdout=true&stderr=true&timestamps=true&follow=true',
+        '$base/containers/$id/logs?stdout=true&stderr=true&timestamps=true&follow=true',
       );
       final request = http.Request('GET', url)
         ..headers['Content-Type'] = 'application/vnd.docker.raw-stream';
@@ -48,6 +59,4 @@ class LogsApiService {
       rethrow;
     }
   }
-
-  final String baseUrl;
 }

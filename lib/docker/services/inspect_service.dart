@@ -5,13 +5,27 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 class DockerInspectService {
-  final String baseUrl;
+  String? _baseUrl;
 
-  DockerInspectService({this.baseUrl = 'http://$DOCKER_HOST:$DOCKER_PORT'});
+  DockerInspectService({String? baseUrl}) : _baseUrl = baseUrl;
+
+  /// Gets the base URL, loading from config if not provided.
+  Future<String> get baseUrl async {
+    if (_baseUrl != null) return _baseUrl!;
+    _baseUrl = await appConfig.getDockerBaseUrl();
+    return _baseUrl!;
+  }
+
+  /// Refreshes the base URL from config.
+  Future<void> refreshBaseUrl() async {
+    appConfig.invalidateCache();
+    _baseUrl = await appConfig.getDockerBaseUrl();
+  }
 
   Future<Map<String, dynamic>> inspectContainer(String id) async {
     try {
       final prefs = await SharedPreferences.getInstance();
+      final base = await baseUrl;
 
       if (id.isEmpty) {
         throw Exception('Container ID cannot be empty');
@@ -22,7 +36,7 @@ class DockerInspectService {
         return await compute(_parseJson, prefs.getString(id)!);
       }
 
-      final url = Uri.parse('$baseUrl/containers/$id/json');
+      final url = Uri.parse('$base/containers/$id/json');
       final response = await http.get(url);
       if (response.statusCode == 200) {
         // Use compute to parse JSON off the main thread
