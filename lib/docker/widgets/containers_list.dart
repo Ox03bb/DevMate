@@ -18,6 +18,28 @@ class ContainersList extends StatefulWidget {
 }
 
 class _ContainersListState extends State<ContainersList> {
+  late ContainerModel _currentContainer;
+
+  @override
+  void initState() {
+    super.initState();
+    _currentContainer = widget.container;
+  }
+
+  @override
+  void didUpdateWidget(ContainersList oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.container != widget.container) {
+      _currentContainer = widget.container;
+    }
+  }
+
+  void _updateContainerState(String newState) {
+    setState(() {
+      _currentContainer = _currentContainer.copyWith(state: newState);
+    });
+  }
+
   Color _getStateColor(String state) {
     switch (state.toLowerCase()) {
       case 'running':
@@ -40,14 +62,14 @@ class _ContainersListState extends State<ContainersList> {
   @override
   Widget build(BuildContext context) {
     return ListTile(
-      title: Text(widget.container.name),
+      title: Text(_currentContainer.name),
       subtitle: SizedBox(
         child: Row(
           children: [
             Text("State: "),
             Text(
-              widget.container.state,
-              style: TextStyle(color: _getStateColor(widget.container.state)),
+              _currentContainer.state,
+              style: TextStyle(color: _getStateColor(_currentContainer.state)),
             ),
           ],
         ),
@@ -60,51 +82,47 @@ class _ContainersListState extends State<ContainersList> {
             final containerService = ContainerService();
             switch (value) {
               case 'Start':
-                await containerService.startContainer(widget.container.id);
+                await containerService.startContainer(_currentContainer.id);
                 if (context.mounted) {
+                  _updateContainerState('running');
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: Text(
-                        'Container ${widget.container.name} started',
+                        'Container ${_currentContainer.name} started',
                       ),
                       backgroundColor: Colors.green,
                     ),
                   );
-                  widget.onContainerAction?.call();
                 }
                 break;
               case 'Stop':
-                await containerService.stopContainer(widget.container.id);
+                await containerService.stopContainer(_currentContainer.id);
                 if (context.mounted) {
+                  _updateContainerState('exited');
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: Text(
-                        'Container ${widget.container.name} stopped',
+                        'Container ${_currentContainer.name} stopped',
                       ),
                       backgroundColor: Colors.orange,
                     ),
                   );
-                  widget.onContainerAction?.call();
                 }
                 break;
               case 'Restart':
-                await containerService.restartContainer(widget.container.id);
+                await containerService.restartContainer(_currentContainer.id);
                 if (context.mounted) {
+                  _updateContainerState('running');
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: Text(
-                        'Container ${widget.container.name} restarted',
+                        'Container ${_currentContainer.name} restarted',
                       ),
                       backgroundColor: Colors.blue,
                     ),
                   );
-                  widget.onContainerAction?.call();
                 }
                 break;
-            }
-            // Refresh the parent widget to update the container state
-            if (context.mounted) {
-              setState(() {});
             }
           } catch (e) {
             if (context.mounted) {
@@ -118,7 +136,7 @@ class _ContainersListState extends State<ContainersList> {
           }
         },
         itemBuilder: (context) {
-          final state = widget.container.state.toLowerCase();
+          final state = _currentContainer.state.toLowerCase();
           final isRunning = state == 'running';
           final isStopped =
               state.contains('exited') ||
@@ -173,7 +191,8 @@ class _ContainersListState extends State<ContainersList> {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => ContainerDetails(container: widget.container),
+            builder: (context) =>
+                ContainerDetails(container: _currentContainer),
           ),
         );
       },

@@ -25,7 +25,10 @@ class ContainerService {
     try {
       final base = await baseUrl;
       final url = Uri.parse('$base/containers/$containerId/start');
-      final response = await http.post(url);
+      final response = await http.post(url).timeout(
+        const Duration(seconds: 5),
+        onTimeout: () => throw Exception('Connection timeout'),
+      );
 
       if (response.statusCode != 204 && response.statusCode != 304) {
         throw Exception('Failed to start container: ${response.statusCode}');
@@ -40,7 +43,10 @@ class ContainerService {
     try {
       final base = await baseUrl;
       final url = Uri.parse('$base/containers/$containerId/stop');
-      final response = await http.post(url);
+      final response = await http.post(url).timeout(
+        const Duration(seconds: 5),
+        onTimeout: () => throw Exception('Connection timeout'),
+      );
 
       if (response.statusCode != 204 && response.statusCode != 304) {
         throw Exception('Failed to stop container: ${response.statusCode}');
@@ -55,7 +61,10 @@ class ContainerService {
     try {
       final base = await baseUrl;
       final url = Uri.parse('$base/containers/$containerId/restart');
-      final response = await http.post(url);
+      final response = await http.post(url).timeout(
+        const Duration(seconds: 5),
+        onTimeout: () => throw Exception('Connection timeout'),
+      );
 
       if (response.statusCode != 204) {
         throw Exception('Failed to restart container: ${response.statusCode}');
@@ -70,7 +79,10 @@ class ContainerService {
     try {
       final base = await baseUrl;
       final url = Uri.parse('$base/containers/$containerId/pause');
-      final response = await http.post(url);
+      final response = await http.post(url).timeout(
+        const Duration(seconds: 5),
+        onTimeout: () => throw Exception('Connection timeout'),
+      );
 
       if (response.statusCode != 204) {
         throw Exception('Failed to pause container: ${response.statusCode}');
@@ -85,7 +97,10 @@ class ContainerService {
     try {
       final base = await baseUrl;
       final url = Uri.parse('$base/containers/$containerId/unpause');
-      final response = await http.post(url);
+      final response = await http.post(url).timeout(
+        const Duration(seconds: 5),
+        onTimeout: () => throw Exception('Connection timeout'),
+      );
 
       if (response.statusCode != 204) {
         throw Exception('Failed to unpause container: ${response.statusCode}');
@@ -100,7 +115,10 @@ class ContainerService {
     try {
       final base = await baseUrl;
       final url = Uri.parse('$base/containers/$containerId?force=$force');
-      final response = await http.delete(url);
+      final response = await http.delete(url).timeout(
+        const Duration(seconds: 5),
+        onTimeout: () => throw Exception('Connection timeout'),
+      );
 
       if (response.statusCode != 204) {
         throw Exception('Failed to remove container: ${response.statusCode}');

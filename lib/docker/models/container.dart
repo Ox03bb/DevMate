@@ -78,4 +78,25 @@ class ContainerModel {
       'ports': ports?.map((port) => port.toJson()).toList(),
     };
   }
+
+  /// Creates a copy of this container with updated fields
+  ContainerModel copyWith({
+    String? id,
+    String? name,
+    Map<String, String>? labels,
+    String? image,
+    String? state,
+    DateTime? createdAt,
+    List<Ports>? ports,
+  }) {
+    return ContainerModel(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      labels: labels ?? this.labels,
+      image: image ?? this.image,
+      state: state ?? this.state,
+      createdAt: createdAt ?? this.createdAt,
+      ports: ports ?? this.ports,
+    );
+  }
 }
