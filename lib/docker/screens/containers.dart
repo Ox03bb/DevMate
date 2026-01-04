@@ -13,13 +13,19 @@ class ContainersBody extends StatefulWidget {
 
 class _ContainersBodyState extends State<ContainersBody> {
   final DockerApiService apiService = DockerApiService();
-  late final Future<List<ContainerModel>> containersFuture = apiService
-      .fetchContainers();
+  late Future<List<ContainerModel>> containersFuture;
   final Map<String, List<ContainerModel>> composeGroups = {};
 
   @override
   void initState() {
     super.initState();
+    containersFuture = apiService.fetchContainers();
+  }
+
+  void _refreshContainers() {
+    setState(() {
+      containersFuture = apiService.fetchContainers();
+    });
   }
 
   @override
@@ -60,14 +66,24 @@ class _ContainersBodyState extends State<ContainersBody> {
               child: ComposerW(
                 name: project,
                 container: containers
-                    .map((c) => ContainersList(container: c))
+                    .map(
+                      (c) => ContainersList(
+                        container: c,
+                        onContainerAction: _refreshContainers,
+                      ),
+                    )
                     .toList(),
               ),
             ),
           );
         });
         for (var container in singleContainers) {
-          widgets.add(ContainersList(container: container));
+          widgets.add(
+            ContainersList(
+              container: container,
+              onContainerAction: _refreshContainers,
+            ),
+          );
         }
 
         return ListView(children: widgets);
