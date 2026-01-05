@@ -447,76 +447,78 @@ class _DeviceDiscoveryDialogState extends State<DeviceDiscoveryDialog> {
   }
 
   Widget _buildManualEntry() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Enter device details manually:',
-          style: Theme.of(context).textTheme.bodyMedium,
-        ),
-        const SizedBox(height: 16),
-        // QR Scan Button
-        SizedBox(
-          width: double.infinity,
-          child: OutlinedButton.icon(
-            onPressed: _scanQRCode,
-            icon: const Icon(Icons.qr_code_scanner),
-            label: const Text('Scan QR Code'),
-            style: OutlinedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 12),
+    return SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Enter device details manually:',
+            style: Theme.of(context).textTheme.bodyMedium,
+          ),
+          const SizedBox(height: 16),
+          // QR Scan Button
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: _scanQRCode,
+              icon: const Icon(Icons.qr_code_scanner),
+              label: const Text('Scan QR Code'),
+              style: OutlinedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+              ),
             ),
           ),
-        ),
-        const SizedBox(height: 16),
-        const Row(
-          children: [
-            Expanded(child: Divider()),
-            Padding(
-              padding: EdgeInsets.symmetric(horizontal: 8.0),
-              child: Text('OR'),
+          const SizedBox(height: 16),
+          const Row(
+            children: [
+              Expanded(child: Divider()),
+              Padding(
+                padding: EdgeInsets.symmetric(horizontal: 8.0),
+                child: Text('OR'),
+              ),
+              Expanded(child: Divider()),
+            ],
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _hostController,
+            decoration: const InputDecoration(
+              labelText: 'Host / IP Address',
+              hintText: '192.168.1.100',
+              border: OutlineInputBorder(),
+              prefixIcon: Icon(Icons.dns),
             ),
-            Expanded(child: Divider()),
+            keyboardType: TextInputType.text,
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _portController,
+            decoration: const InputDecoration(
+              labelText: 'Port',
+              hintText: '2375',
+              border: OutlineInputBorder(),
+              prefixIcon: Icon(Icons.numbers),
+            ),
+            keyboardType: TextInputType.number,
+          ),
+          const SizedBox(height: 16),
+          if (_selectedDevice != null) ...[
+            const Divider(),
+            const SizedBox(height: 8),
+            Text(
+              'Currently saved:',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              '${_selectedDevice!.host}:${_selectedDevice!.port}',
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.bold),
+            ),
           ],
-        ),
-        const SizedBox(height: 16),
-        TextField(
-          controller: _hostController,
-          decoration: const InputDecoration(
-            labelText: 'Host / IP Address',
-            hintText: '192.168.1.100',
-            border: OutlineInputBorder(),
-            prefixIcon: Icon(Icons.dns),
-          ),
-          keyboardType: TextInputType.text,
-        ),
-        const SizedBox(height: 16),
-        TextField(
-          controller: _portController,
-          decoration: const InputDecoration(
-            labelText: 'Port',
-            hintText: '2375',
-            border: OutlineInputBorder(),
-            prefixIcon: Icon(Icons.numbers),
-          ),
-          keyboardType: TextInputType.number,
-        ),
-        const SizedBox(height: 16),
-        if (_selectedDevice != null) ...[
-          const Divider(),
-          const SizedBox(height: 8),
-          Text(
-            'Currently saved:',
-            style: Theme.of(context).textTheme.bodySmall,
-          ),
-          const SizedBox(height: 4),
-          Text(
-            '${_selectedDevice!.host}:${_selectedDevice!.port}',
-            style: Theme.of(
-              context,
-            ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.bold),
-          ),
         ],
-      ],
+      ),
     );
   }
 }
