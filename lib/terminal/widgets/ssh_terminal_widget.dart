@@ -157,7 +157,7 @@ class _SSHTerminalWidgetState extends State<SSHTerminalWidget>
             _output.clear();
           });
         }
-        _sshService.sendCommand('bash');
+        // _sshService.sendCommand('bash');
       }
     } catch (e) {
       if (mounted) {
