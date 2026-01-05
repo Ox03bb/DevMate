@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:devmate/docker/widgets/container_inspect_tab.dart';
 import 'package:devmate/docker/models/container.dart';
 import 'package:devmate/docker/widgets/container_logs_widget.dart';
+import 'package:devmate/docker/widgets/container_exec_widget.dart';
 
 class ContainerDetails extends StatelessWidget {
   final ContainerModel container;
@@ -60,8 +61,8 @@ class ContainerDetails extends StatelessWidget {
           children: [
             // Logs Tab
             ContainerLogsWidget(containerId: container.id),
-            // Details Tab
-            Center(child: Text('Details')),
+            // Exec Tab
+            ContainerExecWidget(containerId: container.id),
             // Files Tab
             Center(child: Text('Files')),
             // Inspect Tab

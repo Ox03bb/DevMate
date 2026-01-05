@@ -10,10 +10,14 @@ class ContainerLogsWidget extends StatefulWidget {
   State<ContainerLogsWidget> createState() => _ContainerLogsWidgetState();
 }
 
-class _ContainerLogsWidgetState extends State<ContainerLogsWidget> {
+class _ContainerLogsWidgetState extends State<ContainerLogsWidget>
+    with AutomaticKeepAliveClientMixin {
   final LogsApiService _logsApiService = LogsApiService();
   late Stream<String> _logStream;
   final List<String> _logs = [];
+
+  @override
+  bool get wantKeepAlive => true;
 
   @override
   void initState() {
@@ -27,6 +31,7 @@ class _ContainerLogsWidgetState extends State<ContainerLogsWidget> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     return Card(
       margin: const EdgeInsets.all(8.0),
       child: Padding(
