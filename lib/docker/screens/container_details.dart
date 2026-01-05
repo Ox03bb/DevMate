@@ -3,6 +3,7 @@ import 'package:devmate/docker/widgets/container_inspect_tab.dart';
 import 'package:devmate/docker/models/container.dart';
 import 'package:devmate/docker/widgets/container_logs_widget.dart';
 import 'package:devmate/docker/widgets/container_exec_widget.dart';
+import 'package:devmate/docker/widgets/container_file_browser_widget.dart';
 
 class ContainerDetails extends StatelessWidget {
   final ContainerModel container;
@@ -64,7 +65,7 @@ class ContainerDetails extends StatelessWidget {
             // Exec Tab
             ContainerExecWidget(containerId: container.id),
             // Files Tab
-            Center(child: Text('Files')),
+            ContainerFileBrowserWidget(containerId: container.id),
             // Inspect Tab
             ContainerInspectTab(container: container),
           ],
