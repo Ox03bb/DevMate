@@ -1,0 +1,9 @@
+devmate-backend
+devmate-qr.png
+*.exe
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+vendor/

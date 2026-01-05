@@ -1,7 +1,11 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:devmate/shared/models/discovered_device.dart';
 import 'package:devmate/shared/services/mdns_discovery_service.dart';
 import 'package:devmate/shared/services/device_settings_service.dart';
+import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:devmate/shared/widgets/qr_scanner_screen.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 /// A dialog widget for discovering and selecting devices via mDNS.
 class DeviceDiscoveryDialog extends StatefulWidget {
@@ -114,6 +118,52 @@ class _DeviceDiscoveryDialogState extends State<DeviceDiscoveryDialog> {
     }
   }
 
+  Future<bool> _requestCameraPermission() async {
+    final status = await Permission.camera.status;
+
+    if (status.isGranted) {
+      return true;
+    }
+
+    if (status.isDenied) {
+      final result = await Permission.camera.request();
+      return result.isGranted;
+    }
+
+    if (status.isPermanentlyDenied) {
+      // Show dialog to open settings
+      if (mounted) {
+        final shouldOpenSettings = await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Camera Permission Required'),
+            content: const Text(
+              'Camera access is required to scan QR codes. '
+              'Please enable camera permission in app settings.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                child: const Text('Open Settings'),
+              ),
+            ],
+          ),
+        );
+
+        if (shouldOpenSettings == true) {
+          await openAppSettings();
+        }
+      }
+      return false;
+    }
+
+    return false;
+  }
+
   Future<void> _saveManualEntry() async {
     final host = _hostController.text.trim();
     final portText = _portController.text.trim();
@@ -140,6 +190,67 @@ class _DeviceDiscoveryDialogState extends State<DeviceDiscoveryDialog> {
     );
 
     await _selectDevice(device);
+  }
+
+  Future<void> _scanQRCode() async {
+    // Request camera permission first
+    final hasPermission = await _requestCameraPermission();
+    if (!hasPermission) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Camera permission is required to scan QR codes'),
+          ),
+        );
+      }
+      return;
+    }
+
+    final result = await Navigator.of(context).push<String>(
+      MaterialPageRoute(builder: (context) => const QRScannerScreen()),
+    );
+
+    if (result != null && mounted) {
+      try {
+        // Parse JSON from QR code
+        final data = jsonDecode(result) as Map<String, dynamic>;
+
+        // Extract required fields
+        final host = data['host'] as String?;
+        final port = data['port'] as int?;
+
+        if (host == null || host.isEmpty) {
+          throw Exception('Missing host in QR code');
+        }
+
+        if (port == null || port <= 0 || port > 65535) {
+          throw Exception('Invalid port in QR code');
+        }
+
+        // Extract optional name field, default to "QR: host"
+        final name = data['name'] as String? ?? 'QR: $host';
+
+        // Create device with all available data
+        final device = DiscoveredDevice(
+          name: name,
+          host: host,
+          port: port,
+          // Any additional fields from the JSON can be added here in the future
+        );
+
+        // Auto-connect
+        await _selectDevice(device);
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Invalid QR code: $e'),
+              backgroundColor: Theme.of(context).colorScheme.error,
+            ),
+          );
+        }
+      }
+    }
   }
 
   @override
@@ -342,6 +453,30 @@ class _DeviceDiscoveryDialogState extends State<DeviceDiscoveryDialog> {
         Text(
           'Enter device details manually:',
           style: Theme.of(context).textTheme.bodyMedium,
+        ),
+        const SizedBox(height: 16),
+        // QR Scan Button
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton.icon(
+            onPressed: _scanQRCode,
+            icon: const Icon(Icons.qr_code_scanner),
+            label: const Text('Scan QR Code'),
+            style: OutlinedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
+        const Row(
+          children: [
+            Expanded(child: Divider()),
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: 8.0),
+              child: Text('OR'),
+            ),
+            Expanded(child: Divider()),
+          ],
         ),
         const SizedBox(height: 16),
         TextField(
