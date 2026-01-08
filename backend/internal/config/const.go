@@ -7,6 +7,7 @@ const (
 
 	DockerPort       = 2375
 	DockerAPIVersion = "v1.51"
+	FileServerPort   = 8888
 )
 
 const (

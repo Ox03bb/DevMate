@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:devmate/docker/screens/docker.dart';
 import 'package:devmate/terminal/screens/terminal.dart';
+import 'package:devmate/files/screens/file_share_screen.dart';
 import 'package:devmate/shared/widgets/core.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -40,7 +41,7 @@ class MyApp extends StatelessWidget {
       routes: {
         '/docker': (context) => const DockerScreen(),
         '/terminal': (context) => const TerminalScreen(),
-        '/files': (context) => const PlaceholderScreen(title: 'File Sharing'),
+        '/files': (context) => const FileShareScreen(),
         '/settings': (context) => const PlaceholderScreen(title: 'Settings'),
       },
     );

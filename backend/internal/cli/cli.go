@@ -5,6 +5,7 @@ import (
 	"os"
 
 	cfg "devmate-backend/internal/config"
+	"devmate-backend/internal/fileserver"
 	mdns "devmate-backend/internal/mDNS"
 	"devmate-backend/internal/qrcode"
 )
@@ -46,6 +47,15 @@ func Run() {
 	defer server.Shutdown()
 
 	printMDNSStarted(ip, cfg.ServicePort)
+
+	// Start file server in background
+	go func() {
+		fileServer := fileserver.NewFileServer("", cfg.FileServerPort)
+		log.Printf("Starting file server on port %d...\n", cfg.FileServerPort)
+		if err := fileServer.Start(); err != nil {
+			log.Printf("File server error: %v", err)
+		}
+	}()
 
 	// Wait for interrupt signal
 	waitForShutdown()
