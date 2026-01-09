@@ -8,15 +8,13 @@ import 'package:devmate/files/models/file_item.dart';
 /// Service for interacting with the file sharing API.
 class FileService {
   String? _baseUrl;
-  static const int _fileServerPort = 8888;
 
   FileService({String? baseUrl}) : _baseUrl = baseUrl;
 
-  /// Gets the base URL for the file server.
+  /// Gets the base URL for the file server (through proxy).
   Future<String> get baseUrl async {
     if (_baseUrl != null) return _baseUrl!;
-    final host = await appConfig.getHost();
-    _baseUrl = 'http://$host:$_fileServerPort';
+    _baseUrl = await appConfig.getFileServerBaseUrl();
     return _baseUrl!;
   }
 

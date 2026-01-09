@@ -101,7 +101,7 @@ class _CoreDrawerState extends State<_CoreDrawer> {
     if (mounted) {
       setState(() {
         _currentHost = host ?? DEFAULT_HOST;
-        _currentPort = port ?? DEFAULT_DOCKER_PORT;
+        _currentPort = port ?? DEFAULT_PROXY_PORT;
       });
     }
   }

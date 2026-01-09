@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:devmate/shared/widgets/core.dart';
 import 'package:devmate/shared/services/device_settings_service.dart';
+import 'package:devmate/shared/services/docker_socket_service.dart';
 import 'package:devmate/files/services/download_manager.dart';
 import 'package:devmate/files/screens/downloads_screen.dart';
 import 'package:devmate/config.dart';
@@ -15,12 +16,18 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   final DeviceSettingsService _deviceService = DeviceSettingsService();
+  final DockerSocketService _dockerSocketService = DockerSocketService();
   final DownloadManager _downloadManager = DownloadManager.instance;
 
   // Device settings
   String? _deviceName;
   String? _deviceHost;
   int? _devicePort;
+
+  // Docker socket settings
+  List<DockerSocket> _dockerSockets = [];
+  String? _currentSocketPath;
+  bool _dockerAvailable = false;
 
   // Download stats
   int _downloadCount = 0;
@@ -44,12 +51,29 @@ class _SettingsScreenState extends State<SettingsScreen> {
       final downloadFiles = await _downloadManager.getDownloadedFiles();
       final downloadSize = await _downloadManager.getTotalDownloadSize();
 
+      // Load Docker socket settings
+      List<DockerSocket> sockets = [];
+      String? currentSocket;
+      bool dockerOk = false;
+
+      try {
+        sockets = await _dockerSocketService.getDockerSockets();
+        currentSocket = await _dockerSocketService.getCurrentSocket();
+        final health = await _dockerSocketService.getHealthStatus();
+        dockerOk = health['services']?['docker'] == true;
+      } catch (e) {
+        // Docker socket service not available, ignore
+      }
+
       setState(() {
         _deviceName = device?.name;
         _deviceHost = device?.host;
         _devicePort = device?.port;
         _downloadCount = downloadFiles.length;
         _downloadSize = downloadSize;
+        _dockerSockets = sockets;
+        _currentSocketPath = currentSocket;
+        _dockerAvailable = dockerOk;
         _isLoading = false;
       });
     } catch (e) {
@@ -231,10 +255,103 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(1)} GB';
   }
 
+  Future<void> _showDockerSocketSelector() async {
+    if (_dockerSockets.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No Docker sockets available'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    final selected = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Select Docker Socket'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: _dockerSockets.map((socket) {
+            return RadioListTile<String>(
+              title: Text(socket.displayName),
+              subtitle: Text(
+                socket.path,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.onSurface.withOpacity(0.6),
+                ),
+              ),
+              secondary: Icon(
+                socket.available ? Icons.check_circle : Icons.error,
+                color: socket.available ? Colors.green : Colors.red,
+              ),
+              value: socket.path,
+              groupValue: _currentSocketPath,
+              onChanged: socket.available
+                  ? (value) => Navigator.pop(context, value)
+                  : null,
+            );
+          }).toList(),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+        ],
+      ),
+    );
+
+    if (selected != null && selected != _currentSocketPath) {
+      try {
+        await _dockerSocketService.selectSocket(selected);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Docker socket changed'),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+        _loadSettings();
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to change socket: $e'),
+              behavior: SnackBarBehavior.floating,
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    }
+  }
+
+  String _getDockerSocketDisplayName() {
+    if (_currentSocketPath == null) return 'Not connected';
+    final socket = _dockerSockets.firstWhere(
+      (s) => s.path == _currentSocketPath,
+      orElse: () => DockerSocket(
+        path: _currentSocketPath!,
+        available: false,
+        active: true,
+      ),
+    );
+    return socket.displayName;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Core(
       title: 'Settings',
+      onDeviceChanged: () {
+        _dockerSocketService.refreshBaseUrl();
+        _loadSettings();
+      },
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(
@@ -267,6 +384,33 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           ),
                       ],
                     ),
+                  ),
+
+                  const Divider(height: 32),
+
+                  // Docker Section
+                  _buildSectionHeader('Docker'),
+                  _buildSettingsTile(
+                    icon: Icons.storage,
+                    iconColor: Colors.cyan,
+                    title: 'Docker Socket',
+                    subtitle: _getDockerSocketDisplayName(),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 10,
+                          height: 10,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: _dockerAvailable ? Colors.green : Colors.red,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        const Icon(Icons.chevron_right),
+                      ],
+                    ),
+                    onTap: _showDockerSocketSelector,
                   ),
 
                   const Divider(height: 32),
