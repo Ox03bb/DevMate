@@ -415,7 +415,7 @@ class _SSHTerminalWidgetState extends State<SSHTerminalWidget>
                       'Terminal ready. Type commands below.',
                       style: TextStyle(
                         color: Colors.grey[600],
-                        fontFamily: 'monospace',
+                        fontFamily: 'NerdFont',
                       ),
                     ),
                   )
@@ -427,7 +427,7 @@ class _SSHTerminalWidgetState extends State<SSHTerminalWidget>
                         _output[index],
                         baseStyle: const TextStyle(
                           color: Colors.white,
-                          fontFamily: 'monospace',
+                          fontFamily: 'NerdFont',
                           fontSize: 14,
                         ),
                       );
@@ -463,7 +463,7 @@ class _SSHTerminalWidgetState extends State<SSHTerminalWidget>
                     ),
                   ),
                   onSubmitted: (_) => _sendCommand(),
-                  style: const TextStyle(fontFamily: 'monospace'),
+                  style: const TextStyle(fontFamily: 'NerdFont'),
                 ),
               ),
               const SizedBox(width: 8),
