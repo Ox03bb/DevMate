@@ -140,6 +140,8 @@ class _ContainersBodyState extends State<ContainersBody> {
                       ),
                     )
                     .toList(),
+                containerModels: containers,
+                onContainerAction: _refreshContainers,
               ),
             ),
           );
