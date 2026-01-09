@@ -2,8 +2,10 @@ package proxy
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net"
 	"net/http"
 	"net/http/httputil"
@@ -38,7 +40,19 @@ func NewProxyServer(port int, dockerSocketPath string, fileServerPort int) *Prox
 func (p *ProxyServer) Start() error {
 	gin.SetMode(gin.ReleaseMode)
 	p.router = gin.New()
-	p.router.Use(gin.Recovery())
+	// Custom recovery that ignores http.ErrAbortHandler (client disconnections)
+	p.router.Use(gin.CustomRecovery(func(c *gin.Context, recovered interface{}) {
+		if err, ok := recovered.(error); ok {
+			if errors.Is(err, http.ErrAbortHandler) {
+				// Client disconnected, this is expected - just abort silently
+				c.Abort()
+				return
+			}
+		}
+		// For other panics, log and return 500
+		log.Printf("Recovered from panic: %v", recovered)
+		c.AbortWithStatus(http.StatusInternalServerError)
+	}))
 	p.router.Use(p.corsMiddleware())
 
 	// Route /docker/* to Docker socket
@@ -59,8 +73,6 @@ func (p *ProxyServer) Start() error {
 
 	addr := fmt.Sprintf(":%d", p.port)
 	fmt.Printf("Reverse proxy starting on port %d\n", p.port)
-	fmt.Printf("  /docker/*     -> Docker socket (%s)\n", p.dockerSocketPath)
-	fmt.Printf("  /api/files/*  -> File server (port %d)\n", p.fileServerPort)
 
 	return p.router.Run(addr)
 }
@@ -138,6 +150,10 @@ func (p *ProxyServer) handleDocker(c *gin.Context) {
 			return nil
 		},
 		ErrorHandler: func(w http.ResponseWriter, r *http.Request, err error) {
+			// Check if client disconnected (context canceled)
+			if errors.Is(err, context.Canceled) || errors.Is(r.Context().Err(), context.Canceled) {
+				return // Client disconnected, silently ignore
+			}
 			http.Error(w, fmt.Sprintf("Docker proxy error: %v", err), http.StatusBadGateway)
 		},
 	}
@@ -188,6 +204,10 @@ func (p *ProxyServer) handleFileServer(c *gin.Context) {
 			return nil
 		},
 		ErrorHandler: func(w http.ResponseWriter, r *http.Request, err error) {
+			// Check if client disconnected (context canceled)
+			if errors.Is(err, context.Canceled) || errors.Is(r.Context().Err(), context.Canceled) {
+				return // Client disconnected, silently ignore
+			}
 			http.Error(w, fmt.Sprintf("File server proxy error: %v", err), http.StatusBadGateway)
 		},
 	}
