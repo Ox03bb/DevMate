@@ -190,7 +190,8 @@ class _FileShareScreenState extends State<FileShareScreen> {
         if (file.path != null) {
           await _fileService.uploadFile(
             file.path!,
-            '$_currentPath/${file.name}',
+            _currentPath,
+            fileName: file.name,
           );
         } else if (file.bytes != null) {
           await _fileService.uploadBytes(file.bytes!, file.name, _currentPath);

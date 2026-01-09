@@ -70,7 +70,12 @@ class FileService {
   }
 
   /// Uploads a file to the remote server.
-  Future<bool> uploadFile(String localPath, String remotePath) async {
+  /// [fileName] can be provided to override the filename (useful when the local path contains cache directories).
+  Future<bool> uploadFile(
+    String localPath,
+    String remotePath, {
+    String? fileName,
+  }) async {
     try {
       final base = await baseUrl;
       final url = Uri.parse('$base/api/files/upload');
@@ -82,7 +87,13 @@ class FileService {
 
       final request = http.MultipartRequest('POST', url);
       request.fields['path'] = remotePath;
-      request.files.add(await http.MultipartFile.fromPath('file', localPath));
+      request.files.add(
+        await http.MultipartFile.fromPath(
+          'file',
+          localPath,
+          filename: fileName,
+        ),
+      );
 
       final streamedResponse = await request.send();
       final response = await http.Response.fromStream(streamedResponse);
