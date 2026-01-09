@@ -1,7 +1,6 @@
 package fileserver
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -9,6 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/gin-gonic/gin"
 )
 
 // FileItem represents a file or directory
@@ -26,6 +27,7 @@ type FileItem struct {
 type FileServer struct {
 	rootPath string
 	port     int
+	router   *gin.Engine
 }
 
 // NewFileServer creates a new file server instance
@@ -48,38 +50,45 @@ func NewFileServer(rootPath string, port int) *FileServer {
 
 // Start starts the file server
 func (fs *FileServer) Start() error {
-	mux := http.NewServeMux()
+	gin.SetMode(gin.ReleaseMode)
+	fs.router = gin.New()
+	fs.router.Use(gin.Recovery())
+	fs.router.Use(fs.corsMiddleware())
 
 	// Register routes
-	mux.HandleFunc("/api/files/list", fs.corsMiddleware(fs.handleList))
-	mux.HandleFunc("/api/files/download", fs.corsMiddleware(fs.handleDownload))
-	mux.HandleFunc("/api/files/upload", fs.corsMiddleware(fs.handleUpload))
-	mux.HandleFunc("/api/files/mkdir", fs.corsMiddleware(fs.handleMkdir))
-	mux.HandleFunc("/api/files/delete", fs.corsMiddleware(fs.handleDelete))
-	mux.HandleFunc("/api/files/rename", fs.corsMiddleware(fs.handleRename))
-	mux.HandleFunc("/api/files/info", fs.corsMiddleware(fs.handleInfo))
-	mux.HandleFunc("/api/files/search", fs.corsMiddleware(fs.handleSearch))
+	api := fs.router.Group("/api/files")
+	{
+		api.GET("/list", fs.handleList)
+		api.GET("/download", fs.handleDownload)
+		api.POST("/upload", fs.handleUpload)
+		api.POST("/mkdir", fs.handleMkdir)
+		api.DELETE("/delete", fs.handleDelete)
+		api.POST("/rename", fs.handleRename)
+		api.GET("/info", fs.handleInfo)
+		api.GET("/search", fs.handleSearch)
+	}
 
 	addr := fmt.Sprintf(":%d", fs.port)
 	fmt.Printf("File server starting on port %d\n", fs.port)
 	fmt.Printf("Serving files from: %s\n", fs.rootPath)
 
-	return http.ListenAndServe(addr, mux)
+	return fs.router.Run(addr)
 }
 
 // corsMiddleware adds CORS headers to responses
-func (fs *FileServer) corsMiddleware(handler http.HandlerFunc) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+func (fs *FileServer) corsMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		c.Header("Access-Control-Allow-Origin", "*")
+		c.Header("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS")
+		c.Header("Access-Control-Allow-Headers", "Content-Type")
+		c.Header("Access-Control-Expose-Headers", "Content-Disposition, Content-Length")
 
-		if r.Method == "OPTIONS" {
-			w.WriteHeader(http.StatusOK)
+		if c.Request.Method == "OPTIONS" {
+			c.AbortWithStatus(http.StatusOK)
 			return
 		}
 
-		handler(w, r)
+		c.Next()
 	}
 }
 
@@ -100,26 +109,18 @@ func (fs *FileServer) resolvePath(requestedPath string) (string, error) {
 }
 
 // handleList lists files in a directory
-func (fs *FileServer) handleList(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
-	requestedPath := r.URL.Query().Get("path")
-	if requestedPath == "" {
-		requestedPath = "/"
-	}
+func (fs *FileServer) handleList(c *gin.Context) {
+	requestedPath := c.DefaultQuery("path", "/")
 
 	fullPath, err := fs.resolvePath(requestedPath)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusForbidden)
+		c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
 		return
 	}
 
 	entries, err := os.ReadDir(fullPath)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to read directory: %v", err), http.StatusInternalServerError)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to read directory: %v", err)})
 		return
 	}
 
@@ -151,102 +152,88 @@ func (fs *FileServer) handleList(w http.ResponseWriter, r *http.Request) {
 		files = append(files, item)
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	c.JSON(http.StatusOK, gin.H{
 		"files": files,
 		"path":  requestedPath,
 	})
 }
 
 // handleDownload downloads a file
-func (fs *FileServer) handleDownload(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
-	requestedPath := r.URL.Query().Get("path")
+func (fs *FileServer) handleDownload(c *gin.Context) {
+	requestedPath := c.Query("path")
 	if requestedPath == "" {
-		http.Error(w, "Path is required", http.StatusBadRequest)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Path is required"})
 		return
 	}
 
 	fullPath, err := fs.resolvePath(requestedPath)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusForbidden)
+		c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
 		return
 	}
 
 	info, err := os.Stat(fullPath)
 	if err != nil {
-		http.Error(w, "File not found", http.StatusNotFound)
+		c.JSON(http.StatusNotFound, gin.H{"error": "File not found"})
 		return
 	}
 
 	if info.IsDir() {
-		http.Error(w, "Cannot download directory", http.StatusBadRequest)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Cannot download directory"})
 		return
 	}
-
-	file, err := os.Open(fullPath)
-	if err != nil {
-		http.Error(w, "Failed to open file", http.StatusInternalServerError)
-		return
-	}
-	defer file.Close()
 
 	filename := filepath.Base(fullPath)
-	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", filename))
-	w.Header().Set("Content-Type", getMimeType(filename))
-	w.Header().Set("Content-Length", fmt.Sprintf("%d", info.Size()))
-
-	io.Copy(w, file)
+	c.FileAttachment(fullPath, filename)
 }
 
 // handleUpload handles file uploads
-func (fs *FileServer) handleUpload(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
-	// Parse multipart form (32 MB max)
-	err := r.ParseMultipartForm(32 << 20)
-	if err != nil {
-		http.Error(w, "Failed to parse form", http.StatusBadRequest)
-		return
-	}
-
+func (fs *FileServer) handleUpload(c *gin.Context) {
 	// Get target path
-	targetPath := r.FormValue("path")
-	if targetPath == "" {
-		targetPath = "/"
-	}
+	targetPath := c.DefaultPostForm("path", "/")
 
 	fullPath, err := fs.resolvePath(targetPath)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusForbidden)
+		c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Verify target directory exists
+	info, err := os.Stat(fullPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			// Create the directory if it doesn't exist
+			if err := os.MkdirAll(fullPath, 0755); err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to create directory: %v", err)})
+				return
+			}
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to access path: %v", err)})
+			return
+		}
+	} else if !info.IsDir() {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Target path is not a directory"})
 		return
 	}
 
 	// Get uploaded file
-	file, handler, err := r.FormFile("file")
+	file, header, err := c.Request.FormFile("file")
 	if err != nil {
-		http.Error(w, "Failed to get uploaded file", http.StatusBadRequest)
+		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("Failed to get uploaded file: %v", err)})
 		return
 	}
 	defer file.Close()
 
 	// Create destination file
-	destPath := filepath.Join(fullPath, handler.Filename)
+	destPath := filepath.Join(fullPath, header.Filename)
 	if !strings.HasPrefix(destPath, fs.rootPath) {
-		http.Error(w, "Access denied", http.StatusForbidden)
+		c.JSON(http.StatusForbidden, gin.H{"error": "Access denied"})
 		return
 	}
 
 	destFile, err := os.Create(destPath)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to create file: %v", err), http.StatusInternalServerError)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to create file: %v", err)})
 		return
 	}
 	defer destFile.Close()
@@ -254,76 +241,64 @@ func (fs *FileServer) handleUpload(w http.ResponseWriter, r *http.Request) {
 	// Copy file contents
 	_, err = io.Copy(destFile, file)
 	if err != nil {
-		http.Error(w, "Failed to save file", http.StatusInternalServerError)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save file"})
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{
+	c.JSON(http.StatusOK, gin.H{
 		"message":  "File uploaded successfully",
-		"filename": handler.Filename,
-		"path":     filepath.Join(targetPath, handler.Filename),
+		"filename": header.Filename,
+		"path":     filepath.Join(targetPath, header.Filename),
 	})
 }
 
 // handleMkdir creates a new directory
-func (fs *FileServer) handleMkdir(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
+func (fs *FileServer) handleMkdir(c *gin.Context) {
 	var req struct {
-		Path string `json:"path"`
+		Path string `json:"path" binding:"required"`
 	}
 
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
 		return
 	}
 
 	fullPath, err := fs.resolvePath(req.Path)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusForbidden)
+		c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
 		return
 	}
 
 	if err := os.MkdirAll(fullPath, 0755); err != nil {
-		http.Error(w, fmt.Sprintf("Failed to create directory: %v", err), http.StatusInternalServerError)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to create directory: %v", err)})
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{
+	c.JSON(http.StatusOK, gin.H{
 		"message": "Directory created successfully",
 		"path":    req.Path,
 	})
 }
 
 // handleDelete deletes a file or directory
-func (fs *FileServer) handleDelete(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodDelete {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
-	requestedPath := r.URL.Query().Get("path")
+func (fs *FileServer) handleDelete(c *gin.Context) {
+	requestedPath := c.Query("path")
 	if requestedPath == "" {
-		http.Error(w, "Path is required", http.StatusBadRequest)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Path is required"})
 		return
 	}
 
-	recursive := r.URL.Query().Get("recursive") == "true"
+	recursive := c.Query("recursive") == "true"
 
 	fullPath, err := fs.resolvePath(requestedPath)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusForbidden)
+		c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
 		return
 	}
 
 	// Prevent deleting root
 	if fullPath == fs.rootPath {
-		http.Error(w, "Cannot delete root directory", http.StatusForbidden)
+		c.JSON(http.StatusForbidden, gin.H{"error": "Cannot delete root directory"})
 		return
 	}
 
@@ -335,53 +310,46 @@ func (fs *FileServer) handleDelete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if deleteErr != nil {
-		http.Error(w, fmt.Sprintf("Failed to delete: %v", deleteErr), http.StatusInternalServerError)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to delete: %v", deleteErr)})
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{
+	c.JSON(http.StatusOK, gin.H{
 		"message": "Deleted successfully",
 		"path":    requestedPath,
 	})
 }
 
 // handleRename renames a file or directory
-func (fs *FileServer) handleRename(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
+func (fs *FileServer) handleRename(c *gin.Context) {
 	var req struct {
-		OldPath string `json:"oldPath"`
-		NewPath string `json:"newPath"`
+		OldPath string `json:"oldPath" binding:"required"`
+		NewPath string `json:"newPath" binding:"required"`
 	}
 
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
 		return
 	}
 
 	oldFullPath, err := fs.resolvePath(req.OldPath)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusForbidden)
+		c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
 		return
 	}
 
 	newFullPath, err := fs.resolvePath(req.NewPath)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusForbidden)
+		c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
 		return
 	}
 
 	if err := os.Rename(oldFullPath, newFullPath); err != nil {
-		http.Error(w, fmt.Sprintf("Failed to rename: %v", err), http.StatusInternalServerError)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to rename: %v", err)})
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{
+	c.JSON(http.StatusOK, gin.H{
 		"message": "Renamed successfully",
 		"oldPath": req.OldPath,
 		"newPath": req.NewPath,
@@ -389,27 +357,22 @@ func (fs *FileServer) handleRename(w http.ResponseWriter, r *http.Request) {
 }
 
 // handleInfo gets file/directory information
-func (fs *FileServer) handleInfo(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
-	requestedPath := r.URL.Query().Get("path")
+func (fs *FileServer) handleInfo(c *gin.Context) {
+	requestedPath := c.Query("path")
 	if requestedPath == "" {
-		http.Error(w, "Path is required", http.StatusBadRequest)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Path is required"})
 		return
 	}
 
 	fullPath, err := fs.resolvePath(requestedPath)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusForbidden)
+		c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
 		return
 	}
 
 	info, err := os.Stat(fullPath)
 	if err != nil {
-		http.Error(w, "File not found", http.StatusNotFound)
+		c.JSON(http.StatusNotFound, gin.H{"error": "File not found"})
 		return
 	}
 
@@ -426,31 +389,22 @@ func (fs *FileServer) handleInfo(w http.ResponseWriter, r *http.Request) {
 		item.MimeType = getMimeType(info.Name())
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(item)
+	c.JSON(http.StatusOK, item)
 }
 
 // handleSearch searches for files
-func (fs *FileServer) handleSearch(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
-	query := r.URL.Query().Get("query")
+func (fs *FileServer) handleSearch(c *gin.Context) {
+	query := c.Query("query")
 	if query == "" {
-		http.Error(w, "Query is required", http.StatusBadRequest)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Query is required"})
 		return
 	}
 
-	basePath := r.URL.Query().Get("basePath")
-	if basePath == "" {
-		basePath = "/"
-	}
+	basePath := c.DefaultQuery("basePath", "/")
 
 	fullBasePath, err := fs.resolvePath(basePath)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusForbidden)
+		c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
 		return
 	}
 
@@ -501,8 +455,7 @@ func (fs *FileServer) handleSearch(w http.ResponseWriter, r *http.Request) {
 		return nil
 	})
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	c.JSON(http.StatusOK, gin.H{
 		"files": results,
 		"query": query,
 	})

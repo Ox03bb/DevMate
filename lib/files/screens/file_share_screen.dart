@@ -5,6 +5,8 @@ import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:devmate/files/models/file_item.dart';
 import 'package:devmate/files/services/file_service.dart';
+import 'package:devmate/files/services/download_manager.dart';
+import 'package:devmate/files/screens/downloads_screen.dart';
 import 'package:devmate/files/widgets/file_list_item.dart';
 import 'package:devmate/files/widgets/file_grid_item.dart';
 import 'package:devmate/files/widgets/path_breadcrumb.dart';
@@ -221,34 +223,22 @@ class _FileShareScreenState extends State<FileShareScreen> {
     try {
       final bytes = await _fileService.downloadFile(item.path);
 
-      // Get downloads directory
-      Directory? downloadDir;
-      if (Platform.isAndroid) {
-        downloadDir = Directory('/storage/emulated/0/Download');
-        if (!await downloadDir.exists()) {
-          downloadDir = await getExternalStorageDirectory();
-        }
-      } else if (Platform.isIOS) {
-        downloadDir = await getApplicationDocumentsDirectory();
-      } else {
-        downloadDir = await getDownloadsDirectory();
-      }
-
-      if (downloadDir == null) {
-        throw Exception('Could not access downloads directory');
-      }
-
-      final file = File('${downloadDir.path}/${item.name}');
-      await file.writeAsBytes(bytes);
+      // Save to DevMate downloads folder
+      await DownloadManager.instance.saveFile(item.name, bytes);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Downloaded to ${file.path}'),
+            content: Text('Downloaded to DevMate folder'),
             behavior: SnackBarBehavior.floating,
             action: SnackBarAction(
-              label: 'Share',
-              onPressed: () => Share.shareXFiles([XFile(file.path)]),
+              label: 'View',
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const DownloadsScreen(),
+                ),
+              ),
             ),
           ),
         );
@@ -658,6 +648,15 @@ class _FileShareScreenState extends State<FileShareScreen> {
             onPressed: _clearSelection,
           ),
         ] else ...[
+          IconButton(
+            icon: const Icon(Icons.download),
+            color: Theme.of(context).colorScheme.onPrimary,
+            tooltip: 'Downloads',
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const DownloadsScreen()),
+            ),
+          ),
           IconButton(
             icon: Icon(_isGridView ? Icons.list : Icons.grid_view),
             color: Theme.of(context).colorScheme.onPrimary,
