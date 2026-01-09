@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:devmate/docker/screens/docker.dart';
 import 'package:devmate/terminal/screens/terminal.dart';
 import 'package:devmate/files/screens/file_share_screen.dart';
-import 'package:devmate/shared/widgets/core.dart';
+import 'package:devmate/shared/screens/settings_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() async {
@@ -42,20 +42,8 @@ class MyApp extends StatelessWidget {
         '/docker': (context) => const DockerScreen(),
         '/terminal': (context) => const TerminalScreen(),
         '/files': (context) => const FileShareScreen(),
-        '/settings': (context) => const PlaceholderScreen(title: 'Settings'),
+        '/settings': (context) => const SettingsScreen(),
       },
     );
-  }
-}
-
-// Temporary placeholder for screens not yet implemented
-class PlaceholderScreen extends StatelessWidget {
-  final String title;
-
-  const PlaceholderScreen({super.key, required this.title});
-
-  @override
-  Widget build(BuildContext context) {
-    return Core(body: Center(child: Text('$title - Coming Soon')));
   }
 }
