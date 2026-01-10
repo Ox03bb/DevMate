@@ -37,6 +37,11 @@ DevMate is a cross-platform mobile app for developers that enables remote manage
 - **QR Code Pairing** - Scan QR code for instant connection setup
 - **Connection Persistence** - Remember your connection settings
 
+> [!important]
+> - this app is **not secure** for use over public networks. 
+> - the security part still under development.
+> - Use it only on trusted local networks for now.
+
 ## Coming Soon
 - **DataBase Client** - Manage databases remotely
 - **Git Integration** - View and manage Local Git repositories
