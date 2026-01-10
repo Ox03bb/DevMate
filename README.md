@@ -33,7 +33,7 @@ DevMate is a cross-platform mobile app for developers that enables remote manage
 - **Search & Sort** - Find files quickly with search and sorting options
 
 ### Easy Connection
-- **mDNS Discovery** - Automatically discover DevMate backend on your local network
+- **mDNS Discovery** - `Automatically` discover DevMate backend on your local network
 - **QR Code Pairing** - Scan QR code for instant connection setup
 - **Connection Persistence** - Remember your connection settings
 

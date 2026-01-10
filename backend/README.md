@@ -1,18 +1,18 @@
-# DevMate Backend - mDNS Discovery Service
+# DevMate Backend
 
-A Go-based mDNS service for DevMate that broadcasts device information and generates QR codes for easy mobile connection.
+A Go-based backend server for DevMate that provides Docker management, file sharing, and device discovery services.
 
 ## Features
 
-- 🔍 mDNS service broadcasting for automatic device discovery
-- 📱 QR code generation for manual device connection
-- 🖥️ ASCII art QR code display in terminal
-- 💾 PNG QR code export
+- **Docker Proxy** - Routes Docker API requests to the local Docker socket
+- **File Server** - Browse, upload, download, and manage files remotely
+- **mDNS Discovery** - Automatic service discovery using mDNS/Zeroconf
+- **QR Code Connection** - Generate QR codes for easy mobile app pairing
 
-## Prerequisites
+## Requirements
 
-- Go 1.21 or higher
-- Docker (for testing)
+- Go 1.23.0 or later
+- Docker (optional, for Docker management features)
 
 ## Installation
 
@@ -21,52 +21,89 @@ cd backend
 go mod download
 ```
 
-## Usage
-
-Run the mDNS service:
+## Building
 
 ```bash
-go run main.go
+# Build for current platform
+go build -o bin/devmate-backend ./cmd/main.go
+
 ```
 
-Or build and run:
+## Running
 
 ```bash
-go build -o devmate-backend
-./devmate-backend
+go run ./cmd/main.go
 ```
 
-## How It Works
+Or run the compiled binary:
 
-1. The service detects your local IP address
-2. Starts an mDNS broadcaster on `_devmate._tcp`
-3. Generates a QR code containing connection information (host, port, name)
-4. Displays the QR code as ASCII art in the terminal
-5. Saves the QR code as `devmate-qr.png`
-
-## QR Code Data Format
-
-The QR code contains JSON data:
-
-```json
-{
-  "host": "192.168.1.100",
-  "port": 2375,
-  "name": "hostname"
-}
+```bash
+./bin/devmate-backend
 ```
 
-## Configuration
+## Architecture
 
-Default port: `2375` (Docker API port)
+```
+backend/
+├── cmd/
+│   └── main.go           # Application entry point
+├── internal/
+│   ├── cli/              # CLI interface and startup logic
+│   ├── config/           # Configuration and constants
+│   ├── fileserver/       # File management HTTP server
+│   ├── mDNS/             # mDNS/Zeroconf service discovery
+│   ├── proxy/            # Reverse proxy for Docker and file server
+│   └── qrcode/           # QR code generation for connection info
+├── pkg/
+│   └── qrcode/           # Public QR code utilities
+├── go.mod
+└── go.sum
+```
 
-To change the port, modify the `servicePort` constant in `main.go`.
+## API Endpoints
 
-## Dependencies
+The server runs on port **4321** by default.
 
-- `github.com/grandcat/zeroconf` - mDNS implementation
-- `github.com/skip2/go-qrcode` - QR code generation
+### Health & Info
 
-## License
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/health` | GET | Health check endpoint |
+| `/info` | GET | Server information |
 
-Part of the DevMate project.
+### Docker API
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/docker/*` | ANY | Proxied Docker API requests |
+| `/docker-sockets` | GET | List available Docker sockets |
+| `/docker-sockets/select` | POST | Switch active Docker socket |
+
+### File Server API
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/files/list` | GET | List files in a directory |
+| `/api/files/download` | GET | Download a file |
+| `/api/files/upload` | POST | Upload a file |
+| `/api/files/mkdir` | POST | Create a directory |
+| `/api/files/delete` | DELETE | Delete a file or directory |
+| `/api/files/rename` | POST | Rename a file or directory |
+| `/api/files/info` | GET | Get file information |
+| `/api/files/search` | GET | Search for files |
+
+## Service Discovery
+
+The backend advertises itself via mDNS with the following service type:
+
+- **Service**: `_devmate._tcp`
+- **Domain**: `local.`
+
+This allows the DevMate mobile app to automatically discover the backend on the local network.
+
+## Docker Socket Paths
+
+The backend checks for Docker sockets in the following locations:
+
+1. `/var/run/docker.sock` (Linux/standard)
+2. `~/.docker/desktop/docker.sock` (Docker Desktop)
